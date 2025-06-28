@@ -49,9 +49,9 @@ jobs:
 
           aws lambda update-function-configuration \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
-            --environment "Variables={
-              \"DYNAMODB_TABLE_NAME\":\"${{ secrets.DYNAMODB_TABLE_NAME }}\",
-              \"GROQ_API_KEY\":\"${{ secrets.GROQ_API_KEY }}\"
+            --environment Variables="{
+              DYNAMODB_TABLE_NAME=${{ secrets.DYNAMODB_TABLE_NAME }},
+              GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             }"
 
       - name: Verify Deployment
