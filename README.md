@@ -1,6 +1,10 @@
+# Alexa Skill: Mi Comadre
+
+Skill for senior companionship using LLM via Groq's API
+
 ## Lambda Function Deployment
 
-## Automatic Deployment
+### Automatic Deployment
 
 1. Configure AWS secrets in GitHub Actions
 
@@ -11,7 +15,7 @@
    - Creates a ZIP package
    - Updates existing Lambda function
 
-## Requirements
+### Requirements
 - AWS Lambda previously configured
 - IAM credentials with permissions to update Lambda
 
