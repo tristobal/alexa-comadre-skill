@@ -53,9 +53,6 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
             --zip-file fileb://lambda.zip
-            --no-cli-pager
-
-
 
       - name: Verify Deployment
         run: |
