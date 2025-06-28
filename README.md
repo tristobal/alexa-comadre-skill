@@ -14,3 +14,5 @@
 ## Requirements
 - AWS Lambda previously configured
 - IAM credentials with permissions to update Lambda
+
+> Please check this link for deploy.yaml https://docs.aws.amazon.com/lambda/latest/dg/functions-states.html
