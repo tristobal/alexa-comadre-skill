@@ -41,9 +41,32 @@ jobs:
           zip -r9 ../lambda.zip .
           cd ..
 
-      - name: Deploy to Lambda
+      - name: Deploy Lambda with Environment Variables
         run: |
           aws lambda update-function-code \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
-            --zip-file fileb://lambda.zip \
-            --region ${{ env.AWS_REGION }}
+            --zip-file fileb://lambda.zip
+
+          aws lambda update-function-configuration \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --environment "Variables={
+              DYNAMODB_TABLE_NAME:'${{ secrets.DYNAMODB_TABLE_NAME }}',
+              GROQ_API_KEY:'${{ secrets.GROQ_API_KEY }}'
+            }"
+
+      - name: Verify Deployment
+        run: |
+          CONFIG=$(aws lambda get-function-configuration \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }})
+
+          echo "$CONFIG" | jq '.Environment.Variables'
+
+          if ! echo "$CONFIG" | jq -e '.Environment.Variables.DYNAMODB_TABLE_NAME' > /dev/null; then
+            echo "¡Error: DYNAMODB_TABLE_NAME no está configurada!"
+            exit 1
+          fi
+
+          if ! echo "$CONFIG" | jq -e '.Environment.Variables.GROQ_API_KEY' > /dev/null; then
+            echo "¡Error: GROQ_API_KEY no está configurada!"
+            exit 1
+          fi

@@ -99,7 +99,7 @@ Importante: Responde como si fueras una persona real que disfruta conversar, no 
             payload = {
                 'model': 'llama3-70b-8192',
                 'messages': messages,
-                'max_tokens': 150,  # Limitado para respuestas de Alexa
+                'max_tokens': 150,  # Limitado para respuestas de Alexa.
                 'temperature': 0.7,
                 'top_p': 0.9
             }
