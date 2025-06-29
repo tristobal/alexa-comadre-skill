@@ -248,7 +248,6 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
             if keyword in text_lower and keyword not in user_profile.get('interests', []):
                 user_profile.setdefault('interests', []).append(keyword)
 
-
 class LaunchRequestHandler(AbstractRequestHandler):
     """Maneja el inicio de la skill con personalización"""
     
@@ -278,17 +277,71 @@ class LaunchRequestHandler(AbstractRequestHandler):
                 .response
         )
 
-class ConversationIntentHandler(AbstractRequestHandler):
-    """Maneja las conversaciones generales con análisis emocional"""
+class UnknownIntentHandler(AbstractRequestHandler):
+    """Maneja solicitudes sin intent definido o con estructura incorrecta"""
     
     def can_handle(self, handler_input):
-        return (is_intent_name("ConversationIntent")(handler_input) or 
-                is_intent_name("AMAZON.FallbackIntent")(handler_input))
+        try:
+            request = handler_input.request_envelope.request
+            return (request.object_type == "IntentRequest" and 
+                    (not hasattr(request, 'intent') or request.intent is None))
+        except:
+            return True
     
     def handle(self, handler_input):
         user_id = handler_input.request_envelope.session.user.user_id
-        user_input = handler_input.request_envelope.request.intent.slots.get('UserInput', {}).get('value', '')
+        user_profile = ConversationMemory.get_user_profile(user_id)
         
+        speak_output = "No entendí muy bien lo que dijiste, pero me encanta escucharte. ¿Me puedes contar algo más?"
+        
+        return (
+            handler_input.response_builder
+                .speak(speak_output)
+                .ask("¿Qué me quieres decir?")
+                .response
+        )
+
+class ConversationIntentHandler(AbstractRequestHandler):
+    """Maneja las conversaciones generales con análisis emocional - Versión mejorada"""
+    
+    def can_handle(self, handler_input):
+        try:
+            return (is_intent_name("ConversationIntent")(handler_input) or 
+                    is_intent_name("AMAZON.FallbackIntent")(handler_input))
+        except:
+            return False
+    
+    def handle(self, handler_input):
+        user_id = handler_input.request_envelope.session.user.user_id
+        
+        # Función auxiliar para obtener user_input de forma segura
+        def get_user_input_safely():
+            try:
+                request = handler_input.request_envelope.request
+                
+                # Verificar si es IntentRequest
+                if not hasattr(request, 'intent') or request.intent is None:
+                    return None
+                
+                # Verificar si tiene slots
+                if not hasattr(request.intent, 'slots') or request.intent.slots is None:
+                    return None
+                
+                # Obtener el slot UserInput
+                user_input_slot = request.intent.slots.get('UserInput')
+                if user_input_slot and hasattr(user_input_slot, 'value') and user_input_slot.value:
+                    return user_input_slot.value
+                
+                return None
+                
+            except Exception as e:
+                logger.error(f"Error obteniendo user input: {e}")
+                return None
+        
+        # Obtener input del usuario
+        user_input = get_user_input_safely()
+        
+        # Si no hay input, usar mensaje por defecto
         if not user_input:
             user_input = "Háblame de algo bonito"
         
@@ -297,6 +350,10 @@ class ConversationIntentHandler(AbstractRequestHandler):
         # Analizar estado emocional
         current_mood = EmotionalAnalyzer.analyze_mood(user_input)
         user_profile['user_mood'] = current_mood
+        
+        # Asegurar que emotional_history existe
+        if 'emotional_history' not in user_profile:
+            user_profile['emotional_history'] = []
         user_profile['emotional_history'].append(current_mood)
         
         # Extraer información del usuario (nombre, familia, intereses)
@@ -306,7 +363,7 @@ class ConversationIntentHandler(AbstractRequestHandler):
         messages = []
         
         # Agregar historial previo (solo los últimos 6 intercambios)
-        recent_history = user_profile['conversation_history'][-12:] if user_profile['conversation_history'] else []
+        recent_history = user_profile.get('conversation_history', [])[-12:]
         for message in recent_history:
             messages.append(message)
         
@@ -318,6 +375,10 @@ class ConversationIntentHandler(AbstractRequestHandler):
         
         # Aplicar filtros empáticos
         llm_response = LLMService.apply_empathetic_filter(llm_response, current_mood, user_profile)
+        
+        # Asegurar que conversation_history existe
+        if 'conversation_history' not in user_profile:
+            user_profile['conversation_history'] = []
         
         # Actualizar historial
         user_profile['conversation_history'].append({"role": "user", "content": user_input})
@@ -488,6 +549,7 @@ sb = SkillBuilder()
 sb.add_request_handler(LaunchRequestHandler())
 sb.add_request_handler(MyDayIntentHandler())
 sb.add_request_handler(HowAreYouIntentHandler())
+sb.add_request_handler(UnknownIntentHandler())
 sb.add_request_handler(ConversationIntentHandler())
 sb.add_request_handler(HelpIntentHandler())
 sb.add_request_handler(CancelOrStopIntentHandler())
