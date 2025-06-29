@@ -1,19 +1,42 @@
-# Alexa Skill: Mi Comadre
+# Alexa Skill: Mi Comadre - Empathic Companion
 
-Skill for senior companionship using LLM via Groq's API
+Alexa Skill designed especially as an empathic companion for older adults, using LLM (Groq API) with emotional analysis and personalized memory.
 
-## Lambda Function Deployment
+## 🌟 Key Features.
 
-### Automatic Deployment
+### Empathic Personality.
+- **Maternal and warm tone**: Speaks like a close friend, not a robotic assistant.
+- Emotional memory**: Remembers the user's mood from previous conversations.
+- Adaptive Responses**: Adjusts its tone according to the detected emotional context
 
-1. Configure AWS secrets in GitHub Actions
+### Specific Functionalities
 
-2. Pushes to `master` trigger automatic deployment.
+#### 1. Natural Conversation
+- **Invocation**: "Alexa, open my comadre!"
+- **Examples**: 
+  - "I want to tell you something."
+  - "I'm feeling sad today"
+  - "I have to tell you that..."
 
-3. Workflow:
-   - Install dependencies
-   - Creates a ZIP package
-   - Updates existing Lambda function
+#### 2. Alexa as Friend.
+- **"Alexa, tell me about your day "** → Alexa responds as if she were a real person.
+- **"Alexa, how are you? "** → Natural and reciprocal responses.
+
+#### 3. Intelligent Emotional Analysis.
+- **Sadness detection**: "You seem a little sad to me today, do you want to talk about it?"
+- **Happiness detection**: "How nice to hear you so happy! Tell me more."
+- **Loneliness detection**: Especially sympathetic responses.
+
+### Personalized Memory
+
+The skill maintains a complete user profile that includes:
+
+```python
+user_profile = {
+ "user_name": "Maria", # User name
+ "conversation_history": [...], # Conversation history
+ "user_mood": "happy",
+```
 
 ### Requirements
 - AWS Lambda previously configured
