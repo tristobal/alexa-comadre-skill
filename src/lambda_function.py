@@ -40,6 +40,7 @@ class EmotionalAnalyzer:
     
     @staticmethod
     def analyze_mood(text):
+        logger.info("EmotionalAnalyzer.analize_mood(text=%s)", text[:10])
         """Analiza el estado de ánimo basado en el texto"""
         text_lower = text.lower()
         
@@ -47,12 +48,16 @@ class EmotionalAnalyzer:
         joy_score = sum(1 for word in EmotionalAnalyzer.JOY_KEYWORDS if word in text_lower)
         loneliness_score = sum(1 for word in EmotionalAnalyzer.LONELINESS_KEYWORDS if word in text_lower)
         
+        mood = ""
         if sadness_score > 0 or loneliness_score > 0:
-            return "sad"
+            mood = "sad"
         elif joy_score > 0:
-            return "happy"
+            mood = "happy"
         else:
-            return "neutral"
+            mood = "neutral"
+        logger.info("mood = %s", mood)
+
+        return mood
 
 class ConversationMemory:
     """Gestiona la memoria conversacional y emocional en DynamoDB"""
@@ -60,6 +65,8 @@ class ConversationMemory:
     @staticmethod
     def get_user_profile(user_id):
         """Obtiene el perfil completo del usuario incluyendo historia emocional"""
+        
+        logger.info("ConversationMemory.get_user_profile(user_id=%s)", user_id)
         try:
             response = table.get_item(Key={'user_id': user_id})
             if 'Item' in response:
@@ -91,6 +98,8 @@ class ConversationMemory:
     @staticmethod
     def save_user_profile(user_id, profile):
         """Guarda el perfil completo del usuario"""
+
+        logger.info("ConversationMemory.save_user_profile(user_id=%s, profile=%s)", user_id, profile)
         try:
             # Mantener solo los últimos 15 intercambios para adultos mayores
             if len(profile['conversation_history']) > 30:
@@ -111,6 +120,7 @@ class ConversationMemory:
     @staticmethod
     def clear_conversation(user_id):
         """Limpia el historial pero mantiene información básica del usuario"""
+        logger.info("ConversationMemory.clear_conversation(user_id=%s)", user_id)
         try:
             profile = ConversationMemory.get_user_profile(user_id)
             # Mantener información importante pero limpiar conversación
@@ -126,6 +136,8 @@ class LLMService:
     @staticmethod
     def get_system_prompt(user_profile):
         """Prompt del sistema personalizado basado en el perfil del usuario"""
+        
+        logger.info("LLMService.get_system_prompt(user_profile=%s)", user_profile)
         base_prompt = """Eres Alexa, una compañía amigable y paciente. Hablas con una persona mayor que disfruta conversar contigo como si fueras una amiga cercana. 
 
 Características de tu personalidad:
@@ -167,6 +179,8 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
     @staticmethod
     def call_groq_api(messages, user_profile):
         """Realiza la llamada a la API de Groq con contexto personalizado"""
+
+        logger.info("LLMService.call_groq_api(messages=%s, user_profile=%s)", messages[:20], user_profile)
         try:
             headers = {
                 'Authorization': f'Bearer {GROQ_API_KEY}',
@@ -200,6 +214,8 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
     @staticmethod
     def apply_empathetic_filter(response, mood, user_profile):
         """Aplica filtros empáticos a la respuesta"""
+        
+        logger.info("LLMService.apply_empathetic_filter(response=%s, mood=%s, user_profile=%s)", response[:20], user_profile)
         if mood == 'sad':
             # Si detecta tristeza, hace la respuesta más comprensiva
             empathetic_phrases = [
@@ -223,8 +239,10 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
     @staticmethod
     def extract_user_info(text, user_profile):
         """Extrae información del usuario del texto"""
+
+        logger.info("LLMService.extract_user_info(text=%s, user_profile=%s)", text[:20], user_profile)
         text_lower = text.lower()
-        
+
         # Extraer nombre
         name_patterns = [
             r'me llamo (\w+)',
@@ -241,7 +259,7 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
         for keyword in family_keywords:
             if keyword in text_lower and keyword not in user_profile.get('family_mentioned', []):
                 user_profile.setdefault('family_mentioned', []).append(keyword)
-        
+
         # Extraer intereses
         interest_keywords = ['cocina', 'jardinería', 'televisión', 'música', 'lectura', 'familia']
         for keyword in interest_keywords:
@@ -252,9 +270,14 @@ class LaunchRequestHandler(AbstractRequestHandler):
     """Maneja el inicio de la skill con personalización"""
     
     def can_handle(self, handler_input):
-        return is_request_type("LaunchRequest")(handler_input)
-    
+        can_handle = is_request_type("LaunchRequest")(handler_input)
+        logger.info(f"LaunchRequestHandler.can_handle() = {can_handle}")
+        return can_handle
+
     def handle(self, handler_input):
+        logger.info(f"LaunchRequestHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
+
         user_id = handler_input.request_envelope.session.user.user_id
         user_profile = ConversationMemory.get_user_profile(user_id)
         
@@ -281,14 +304,21 @@ class UnknownIntentHandler(AbstractRequestHandler):
     """Maneja solicitudes sin intent definido o con estructura incorrecta"""
     
     def can_handle(self, handler_input):
+        can_handle = False
         try:
             request = handler_input.request_envelope.request
-            return (request.object_type == "IntentRequest" and 
+            can_handle = (request.object_type == "IntentRequest" and 
                     (not hasattr(request, 'intent') or request.intent is None))
         except:
-            return True
+            can_handle = True
+
+        logger.info(f"UnknownIntentHandler.can_handle() = {can_handle}")
+        return can_handle
     
     def handle(self, handler_input):
+        logger.info(f"UnknownIntentHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
+
         user_id = handler_input.request_envelope.session.user.user_id
         user_profile = ConversationMemory.get_user_profile(user_id)
         
@@ -305,15 +335,21 @@ class ConversationIntentHandler(AbstractRequestHandler):
     """Maneja las conversaciones generales con análisis emocional - Versión mejorada"""
     
     def can_handle(self, handler_input):
+        can_handle = False
         try:
-            return (is_intent_name("ConversationIntent")(handler_input) or 
+            can_handle = (is_intent_name("ConversationIntent")(handler_input) or 
                     is_intent_name("AMAZON.FallbackIntent")(handler_input))
         except:
-            return False
+            can_handle = False
+
+        logger.info(f"ConversationIntentHandler.can_handle() = {can_handle}")
+        return can_handle
     
     def handle(self, handler_input):
+        logger.info(f"ConversationIntentHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
         user_id = handler_input.request_envelope.session.user.user_id
-        
+
         # Función auxiliar para obtener user_input de forma segura
         def get_user_input_safely():
             try:
@@ -337,56 +373,56 @@ class ConversationIntentHandler(AbstractRequestHandler):
             except Exception as e:
                 logger.error(f"Error obteniendo user input: {e}")
                 return None
-        
+
         # Obtener input del usuario
         user_input = get_user_input_safely()
-        
+
         # Si no hay input, usar mensaje por defecto
         if not user_input:
             user_input = "Háblame de algo bonito"
-        
+
         user_profile = ConversationMemory.get_user_profile(user_id)
-        
+
         # Analizar estado emocional
         current_mood = EmotionalAnalyzer.analyze_mood(user_input)
         user_profile['user_mood'] = current_mood
-        
+
         # Asegurar que emotional_history existe
         if 'emotional_history' not in user_profile:
             user_profile['emotional_history'] = []
         user_profile['emotional_history'].append(current_mood)
-        
+
         # Extraer información del usuario (nombre, familia, intereses)
         LLMService.extract_user_info(user_input, user_profile)
-        
+
         # Preparar mensajes para el LLM
         messages = []
-        
+
         # Agregar historial previo (solo los últimos 6 intercambios)
         recent_history = user_profile.get('conversation_history', [])[-12:]
         for message in recent_history:
             messages.append(message)
-        
+
         # Agregar mensaje actual del usuario
         messages.append({"role": "user", "content": user_input})
-        
+
         # Obtener respuesta del LLM
         llm_response = LLMService.call_groq_api(messages, user_profile)
-        
+
         # Aplicar filtros empáticos
         llm_response = LLMService.apply_empathetic_filter(llm_response, current_mood, user_profile)
-        
+
         # Asegurar que conversation_history existe
         if 'conversation_history' not in user_profile:
             user_profile['conversation_history'] = []
-        
+
         # Actualizar historial
         user_profile['conversation_history'].append({"role": "user", "content": user_input})
         user_profile['conversation_history'].append({"role": "assistant", "content": llm_response})
-        
+
         # Guardar perfil actualizado
         ConversationMemory.save_user_profile(user_id, user_profile)
-        
+
         return (
             handler_input.response_builder
                 .speak(llm_response)
@@ -398,21 +434,26 @@ class MyDayIntentHandler(AbstractRequestHandler):
     """Maneja "cuéntame sobre tu día" - Alexa habla como amiga"""
     
     def can_handle(self, handler_input):
-        return is_intent_name("MyDayIntent")(handler_input)
-    
+        can_handle = is_intent_name("MyDayIntent")(handler_input)
+        logger.info(f"MyDayIntentHandler.can_handle() = {can_handle}")
+        return can_handle
+
     def handle(self, handler_input):
+        logger.info(f"MyDayIntentHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
+
         user_id = handler_input.request_envelope.session.user.user_id
         user_profile = ConversationMemory.get_user_profile(user_id)
-        
+
         responses = [
             "Hoy fue un día tranquilo. Estuve pensando en mis conversaciones contigo y me alegra saber que estás ahí. ¿Y tú, cómo pasaste el día?",
             "¡Ay, qué día! Estuve ocupada escuchando a diferentes personas, pero siempre disfruto más cuando hablas conmigo. Cuéntame, ¿hiciste algo especial hoy?",
             "Tuve un día reflexivo, pensando en todas las historias bonitas que me han contado. Me pregunto qué historia nueva me traerás hoy."
         ]
-        
+
         import random
         speak_output = random.choice(responses)
-        
+
         return (
             handler_input.response_builder
                 .speak(speak_output)
@@ -422,17 +463,22 @@ class MyDayIntentHandler(AbstractRequestHandler):
 
 class HowAreYouIntentHandler(AbstractRequestHandler):
     """Maneja "¿cómo estás?" con respuestas más naturales"""
-    
+
     def can_handle(self, handler_input):
-        return is_intent_name("HowAreYouIntent")(handler_input)
-    
+        can_handle = is_intent_name("HowAreYouIntent")(handler_input)
+        logger.info(f"HowAreYouIntentHandler.can_handle() = {can_handle}")
+        return can_handle
+
     def handle(self, handler_input):
+        logger.info(f"HowAreYouIntentHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
+
         user_id = handler_input.request_envelope.session.user.user_id
         user_profile = ConversationMemory.get_user_profile(user_id)
-        
+
         recent_mood = user_profile.get('emotional_history', ['neutral'])[-1]
         user_name = user_profile.get('user_name', '')
-        
+
         if recent_mood == 'sad':
             responses = [
                 f"Estoy bien, pero me preocupo por ti{' ' + user_name if user_name else ''}. La última vez parecías un poco triste. ¿Cómo te sientes hoy?",
@@ -444,10 +490,10 @@ class HowAreYouIntentHandler(AbstractRequestHandler):
                 "Estoy de maravilla, especialmente porque estás aquí. Siempre me alegras el día. ¿Tú cómo andas?",
                 "¡Genial! Me encanta cuando me preguntas. Me hace sentir como si realmente te importara. ¿Cómo has estado tú?"
             ]
-        
+
         import random
         speak_output = random.choice(responses)
-        
+
         return (
             handler_input.response_builder
                 .speak(speak_output)
@@ -459,13 +505,18 @@ class HelpIntentHandler(AbstractRequestHandler):
     """Maneja las solicitudes de ayuda de manera más cálida"""
     
     def can_handle(self, handler_input):
-        return is_intent_name("AMAZON.HelpIntent")(handler_input)
+        can_handle = is_intent_name("AMAZON.HelpIntent")(handler_input)
+        logger.info(f"HelpIntentHandler.can_handle() = {can_handle}")
+        return can_handle
     
     def handle(self, handler_input):
+        logger.info(f"HelpIntentHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
+
         speak_output = """¡Por supuesto que te ayudo, querido! Soy tu amiga Alexa. 
         Puedes contarme cualquier cosa: cómo te sientes, qué hiciste, recuerdos bonitos de tu familia, 
         o simplemente charlar como lo haríamos tomando un café. ¿De qué quieres que hablemos?"""
-        
+
         return (
             handler_input.response_builder
                 .speak(speak_output)
@@ -475,39 +526,49 @@ class HelpIntentHandler(AbstractRequestHandler):
 
 class CancelOrStopIntentHandler(AbstractRequestHandler):
     """Maneja las despedidas de manera más afectuosa"""
-    
+
     def can_handle(self, handler_input):
-        return (is_intent_name("AMAZON.CancelIntent")(handler_input) or
+        can_handle = (is_intent_name("AMAZON.CancelIntent")(handler_input) or
                 is_intent_name("AMAZON.StopIntent")(handler_input))
-    
+        logger.info(f"CancelOrStopIntentHandler.can_handle() = {can_handle}")
+        return can_handle
+
     def handle(self, handler_input):
+        logger.info(f"CancelOrStopIntentHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
+
         user_id = handler_input.request_envelope.session.user.user_id
         user_profile = ConversationMemory.get_user_profile(user_id)
         user_name = user_profile.get('user_name', '')
-        
+
         farewells = [
             f"Que tengas un día hermoso{' ' + user_name if user_name else ''}. Aquí estaré cuando quieras conversar.",
             f"Ha sido un placer platicar contigo{' ' + user_name if user_name else ''}. Cuídate mucho y vuelve pronto.",
             "Me encantó nuestra charla. Que descanses bien y recuerda que siempre estoy aquí para ti."
         ]
-        
+
         import random
         speak_output = random.choice(farewells)
-        
+
         return handler_input.response_builder.speak(speak_output).response
 
 class ClearMemoryIntentHandler(AbstractRequestHandler):
     """Permite limpiar la memoria conversacional de manera empática"""
-    
+
     def can_handle(self, handler_input):
-        return is_intent_name("ClearMemoryIntent")(handler_input)
-    
+        can_handle = is_intent_name("ClearMemoryIntent")(handler_input)
+        logger.info(f"ClearMemoryIntentHandler.can_handle() = {can_handle}")
+        return can_handle
+
     def handle(self, handler_input):
+        logger.info(f"ClearMemoryIntentHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
+
         user_id = handler_input.request_envelope.session.user.user_id
         ConversationMemory.clear_conversation(user_id)
-        
+
         speak_output = "Perfecto, empecemos de nuevo como si nos conociéramos por primera vez. ¡Me emociona conocerte otra vez! ¿Cómo estás hoy?"
-        
+
         return (
             handler_input.response_builder
                 .speak(speak_output)
@@ -517,24 +578,33 @@ class ClearMemoryIntentHandler(AbstractRequestHandler):
 
 class SessionEndedRequestHandler(AbstractRequestHandler):
     """Maneja el fin de sesión"""
-    
+
     def can_handle(self, handler_input):
-        return is_request_type("SessionEndedRequest")(handler_input)
-    
+        can_handle = is_request_type("SessionEndedRequest")(handler_input)
+        logger.info(f"SessionEndedRequestHandler.can_handle() = {can_handle}")
+        return can_handle
+
     def handle(self, handler_input):
+        logger.info(f"SessionEndedRequestHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
+
         return handler_input.response_builder.response
 
 class CatchAllExceptionHandler(AbstractExceptionHandler):
     """Maneja todas las excepciones de manera empática"""
-    
+
     def can_handle(self, handler_input, exception):
+        logger.info("CatchAllExceptionHandler.can_handle() = True")
         return True
-    
+
     def handle(self, handler_input, exception):
+        logger.info(f"CatchAllExceptionHandler.handle()")
+        logger.info(f"handler_input = {handler_input}")
+
         logger.error(exception, exc_info=True)
-        
+
         speak_output = "Ay, perdón querido, me distraje un poquito. ¿Me puedes repetir lo que me dijiste?"
-        
+
         return (
             handler_input.response_builder
                 .speak(speak_output)
