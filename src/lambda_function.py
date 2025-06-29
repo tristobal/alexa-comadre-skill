@@ -197,6 +197,58 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
             logger.error(f"Error en API de Groq: {e}")
             return "Ay disculpa, tuve un pequeño problema. Cuéntame, ¿cómo has estado?"
 
+    @staticmethod
+    def apply_empathetic_filter(response, mood, user_profile):
+        """Aplica filtros empáticos a la respuesta"""
+        if mood == 'sad':
+            # Si detecta tristeza, hace la respuesta más comprensiva
+            empathetic_phrases = [
+                "Me parece que estás un poco triste. ",
+                "Noto que algo te preocupa. ",
+                "Siento que no estás del todo bien. "
+            ]
+            
+            # Solo añadir si la respuesta no es ya empática
+            if not any(phrase.lower() in response.lower() for phrase in ['triste', 'preocup', 'siento']):
+                import random
+                response = random.choice(empathetic_phrases) + response
+        
+        elif mood == 'happy':
+            # Si detecta alegría, hace la respuesta más entusiasta
+            if not any(phrase in response.lower() for phrase in ['¡', 'genial', 'fantástico', 'maravilloso']):
+                response = "¡Qué alegría escucharte tan contenta! " + response
+        
+        return response
+    
+    @staticmethod
+    def extract_user_info(text, user_profile):
+        """Extrae información del usuario del texto"""
+        text_lower = text.lower()
+        
+        # Extraer nombre
+        name_patterns = [
+            r'me llamo (\w+)',
+            r'soy (\w+)',
+            r'mi nombre es (\w+)'
+        ]
+        for pattern in name_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                user_profile['user_name'] = match.group(1).capitalize()
+        
+        # Extraer menciones de familia
+        family_keywords = ['hijo', 'hija', 'nieto', 'nieta', 'esposo', 'esposa', 'hermano', 'hermana']
+        for keyword in family_keywords:
+            if keyword in text_lower and keyword not in user_profile.get('family_mentioned', []):
+                user_profile.setdefault('family_mentioned', []).append(keyword)
+        
+        # Extraer intereses
+        interest_keywords = ['cocina', 'jardinería', 'televisión', 'música', 'lectura', 'familia']
+        for keyword in interest_keywords:
+            if keyword in text_lower and keyword not in user_profile.get('interests', []):
+                user_profile.setdefault('interests', []).append(keyword)
+
+
 class LaunchRequestHandler(AbstractRequestHandler):
     """Maneja el inicio de la skill con personalización"""
     
@@ -280,28 +332,6 @@ class ConversationIntentHandler(AbstractRequestHandler):
                 .ask("¿Qué más me cuentas?")
                 .response
         )
-    
-    @staticmethod
-    def extract_user_info(text, user_profile):
-        """Extrae información del usuario del texto"""
-        text_lower = text.lower()
-        
-        # Extraer nombre
-        name_patterns = [
-            r'me llamo (\w+)',
-            r'soy (\w+)',
-            r'mi nombre es (\w+)'
-        ]
-        for pattern in name_patterns:
-            match = re.search(pattern, text_lower)
-            if match:
-                user_profile['user_name'] = match.group(1).capitalize()
-        
-        # Extraer menciones de familia
-        family_keywords = ['hijo', 'hija', 'nieto', 'nieta', 'esposo', 'esposa', 'hermano', 'hermana']
-        for keyword in family_keywords:
-            if keyword in text_lower and keyword not in user_profile.get('family_mentioned', []):
-                user_profile.setdefault('family_mentioned', []).append(keyword)
 
 class MyDayIntentHandler(AbstractRequestHandler):
     """Maneja "cuéntame sobre tu día" - Alexa habla como amiga"""
@@ -363,60 +393,6 @@ class HowAreYouIntentHandler(AbstractRequestHandler):
                 .ask("Cuéntame cómo te sientes.")
                 .response
         )
-
-class LLMService:
-    """Servicio mejorado para interactuar con Groq LLM"""
-    
-    @staticmethod
-    def apply_empathetic_filter(response, mood, user_profile):
-        """Aplica filtros empáticos a la respuesta"""
-        if mood == 'sad':
-            # Si detecta tristeza, hace la respuesta más comprensiva
-            empathetic_phrases = [
-                "Me parece que estás un poco triste. ",
-                "Noto que algo te preocupa. ",
-                "Siento que no estás del todo bien. "
-            ]
-            
-            # Solo añadir si la respuesta no es ya empática
-            if not any(phrase.lower() in response.lower() for phrase in ['triste', 'preocup', 'siento']):
-                import random
-                response = random.choice(empathetic_phrases) + response
-        
-        elif mood == 'happy':
-            # Si detecta alegría, hace la respuesta más entusiasta
-            if not any(phrase in response.lower() for phrase in ['¡', 'genial', 'fantástico', 'maravilloso']):
-                response = "¡Qué alegría escucharte tan contenta! " + response
-        
-        return response
-    
-    @staticmethod
-    def extract_user_info(text, user_profile):
-        """Extrae información del usuario del texto"""
-        text_lower = text.lower()
-        
-        # Extraer nombre
-        name_patterns = [
-            r'me llamo (\w+)',
-            r'soy (\w+)',
-            r'mi nombre es (\w+)'
-        ]
-        for pattern in name_patterns:
-            match = re.search(pattern, text_lower)
-            if match:
-                user_profile['user_name'] = match.group(1).capitalize()
-        
-        # Extraer menciones de familia
-        family_keywords = ['hijo', 'hija', 'nieto', 'nieta', 'esposo', 'esposa', 'hermano', 'hermana']
-        for keyword in family_keywords:
-            if keyword in text_lower and keyword not in user_profile.get('family_mentioned', []):
-                user_profile.setdefault('family_mentioned', []).append(keyword)
-        
-        # Extraer intereses
-        interest_keywords = ['cocina', 'jardinería', 'televisión', 'música', 'lectura', 'familia']
-        for keyword in interest_keywords:
-            if keyword in text_lower and keyword not in user_profile.get('interests', []):
-                user_profile.setdefault('interests', []).append(keyword)
 
 class HelpIntentHandler(AbstractRequestHandler):
     """Maneja las solicitudes de ayuda de manera más cálida"""
