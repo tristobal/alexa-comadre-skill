@@ -215,7 +215,7 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
     def apply_empathetic_filter(response, mood, user_profile):
         """Aplica filtros empáticos a la respuesta"""
         
-        logger.info("LLMService.apply_empathetic_filter(response=%s, mood=%s, user_profile=%s)", response[:20], user_profile)
+        logger.info("LLMService.apply_empathetic_filter(response=%s, mood=%s, user_profile=%s)", response[:20], mood, user_profile)
         if mood == 'sad':
             # Si detecta tristeza, hace la respuesta más comprensiva
             empathetic_phrases = [
