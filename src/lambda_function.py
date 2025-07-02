@@ -227,6 +227,30 @@ class ConversationMemory:
 class LLMService:
     """Servicio mejorado para interactuar con Groq LLM"""
 
+    # TODO Remove this method. Only for compatibility
+    @staticmethod
+    def apply_empathetic_filter(response, mood, user_profile):
+        """Aplica filtros empáticos a la respuesta"""
+        if mood == 'sad':
+            # Si detecta tristeza, hace la respuesta más comprensiva
+            empathetic_phrases = [
+                "Me parece que estás un poco triste. ",
+                "Noto que algo te preocupa. ",
+                "Siento que no estás del todo bien. "
+            ]
+            
+            # Solo añadir si la respuesta no es ya empática
+            if not any(phrase.lower() in response.lower() for phrase in ['triste', 'preocup', 'siento']):
+                import random
+                response = random.choice(empathetic_phrases) + response
+        
+        elif mood == 'happy':
+            # Si detecta alegría, hace la respuesta más entusiasta
+            if not any(phrase in response.lower() for phrase in ['¡', 'genial', 'fantástico', 'maravilloso']):
+                response = "¡Qué alegría escucharte tan contenta! " + response
+        
+        return response
+
     @staticmethod
     def get_system_prompt(user_profile):
         """Prompt del sistema personalizado basado en el perfil del usuario"""
