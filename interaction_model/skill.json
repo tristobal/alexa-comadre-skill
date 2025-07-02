@@ -25,6 +25,24 @@
                     ]
                 },
                 {
+                    "name": "ProvideNameIntent",
+                    "slots": [
+                        {
+                            "name": "UserName",
+                            "type": "AMAZON.US_FIRST_NAME"
+                        }
+                    ],
+                    "samples": [
+                        "me llamo {UserName}",
+                        "soy {UserName}",
+                        "mi nombre es {UserName}",
+                        "{UserName}",
+                        "yo soy {UserName}",
+                        "puedes llamarme {UserName}",
+                        "mi nombre {UserName}"
+                    ]
+                },
+                {
                     "name": "MyDayIntent",
                     "slots": [],
                     "samples": [
@@ -35,7 +53,9 @@
                         "cómo estuvo tu día",
                         "qué tal tu día",
                         "platícame de tu día",
-                        "dime qué hiciste hoy"
+                        "dime qué hiciste hoy",
+                        "cómo pasaste el día",
+                        "qué tal estuvo tu día"
                     ]
                 },
                 {
@@ -48,8 +68,42 @@
                         "qué tal estás",
                         "cómo te sientes",
                         "cómo has estado",
-                        "te sientes bien",
-                        "estás bien"
+                        "estás bien",
+                        "qué tal",
+                        "cómo sigues",
+                        "todo bien"
+                    ]
+                },
+                {
+                    "name": "PositiveResponseIntent",
+                    "slots": [],
+                    "samples": [
+                        "bien",
+                        "muy bien",
+                        "perfecto",
+                        "genial",
+                        "excelente",
+                        "de maravilla",
+                        "fantástico",
+                        "todo bien",
+                        "súper bien",
+                        "buenísimo"
+                    ]
+                },
+                {
+                    "name": "NegativeResponseIntent",
+                    "slots": [],
+                    "samples": [
+                        "mal",
+                        "no muy bien",
+                        "regular",
+                        "triste",
+                        "deprimido",
+                        "preocupado",
+                        "no tan bien",
+                        "algo mal",
+                        "más o menos",
+                        "podría estar mejor"
                     ]
                 },
                 {
@@ -62,7 +116,9 @@
                         "empezar de nuevo",
                         "reiniciar conversación",
                         "borrar historial",
-                        "nueva conversación"
+                        "nueva conversación",
+                        "olvídalo todo",
+                        "empezar desde cero"
                     ]
                 },
                 {
