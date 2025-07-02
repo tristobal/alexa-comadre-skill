@@ -30,9 +30,8 @@ def setup_dynamodb():
         logger.info(f"Conectado a tabla: {table_name}")
         logger.info(f"Estado de la tabla: {table.table_status}")
 
-        if hasattr(table, 'key_schema'):
-            for key in table.key_schema:
-                logger.info(f"Clave: {key['AttributeName']} (Tipo: {key['KeyType']})")
+        key_schema = table.key_schema
+        logger.info(f"Esquema de claves: {key_schema}")
 
         return True
 
@@ -42,34 +41,6 @@ def setup_dynamodb():
 
 if not setup_dynamodb():
     logger.error("Falló la inicialización de DynamoDB")
-
-def initialize_dynamodb():
-    """Inicializa y verifica la conexión a DynamoDB"""
-    global table
-    try:
-        table_name = os.environ.get('DYNAMODB_TABLE_NAME', 'alexa-conversation-memory')
-        logger.info(f"Inicializando tabla DynamoDB: {table_name}")
-
-        dynamodb = boto3.resource('dynamodb')
-        table = dynamodb.Table(table_name)
-
-        # Verificar que la tabla existe
-        table.load()
-        logger.info(f"Tabla {table_name} encontrada exitosamente")
-
-        # Log del esquema de claves para debug
-        key_schema = table.key_schema
-        logger.info(f"Esquema de claves: {key_schema}")
-
-        return True
-    except Exception as e:
-        logger.error(f"Error inicializando DynamoDB: {e}")
-        return False
-
-try:
-    initialize_dynamodb()
-except Exception as e:
-    logger.error(f"Error en inicialización: {e}")
 
 def get_primary_key_name():
     """Determina el nombre correcto de la clave primaria"""
