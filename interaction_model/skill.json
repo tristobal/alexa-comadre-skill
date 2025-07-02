@@ -1,0 +1,92 @@
+{
+    "interactionModel": {
+        "languageModel": {
+            "invocationName": "comadre virtual",
+            "intents": [
+                {
+                    "name": "ConversationIntent",
+                    "slots": [
+                        {
+                            "name": "UserInput",
+                            "type": "AMAZON.SearchQuery"
+                        }
+                    ],
+                    "samples": [
+                        "quiero contarte algo",
+                        "tengo que decirte que {UserInput}",
+                        "hoy {UserInput}",
+                        "me siento {UserInput}",
+                        "quiero hablar de {UserInput}",
+                        "te cuento que {UserInput}",
+                        "sabes que {UserInput}",
+                        "fíjate que {UserInput}",
+                        "imagínate que {UserInput}",
+                        "no sabes lo que {UserInput}"
+                    ]
+                },
+                {
+                    "name": "MyDayIntent",
+                    "slots": [],
+                    "samples": [
+                        "cuéntame sobre tu día",
+                        "cómo fue tu día",
+                        "qué hiciste hoy",
+                        "cuéntame de tu día",
+                        "cómo estuvo tu día",
+                        "qué tal tu día",
+                        "platícame de tu día",
+                        "dime qué hiciste hoy"
+                    ]
+                },
+                {
+                    "name": "HowAreYouIntent",
+                    "slots": [],
+                    "samples": [
+                        "cómo estás",
+                        "cómo te encuentras",
+                        "cómo andas",
+                        "qué tal estás",
+                        "cómo te sientes",
+                        "cómo has estado",
+                        "te sientes bien",
+                        "estás bien"
+                    ]
+                },
+                {
+                    "name": "ClearMemoryIntent",
+                    "slots": [],
+                    "samples": [
+                        "borra mi conversación",
+                        "limpia mi memoria",
+                        "olvida lo que hemos hablado",
+                        "empezar de nuevo",
+                        "reiniciar conversación",
+                        "borrar historial",
+                        "nueva conversación"
+                    ]
+                },
+                {
+                    "name": "AMAZON.HelpIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.StopIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.CancelIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.NavigateHomeIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.FallbackIntent",
+                    "samples": []
+                }
+            ],
+            "types": []
+        }
+    }
+}
