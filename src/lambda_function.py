@@ -46,16 +46,16 @@ GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 phrases_with_name = [
-    f"¡Qué bonito nombre, {name}! Me alegra conocerte. ¿Cómo te ha ido hoy, {name}?",
-    f"¡Encantado de conocerte, {name}! ¿Qué tal ha sido tu día?",
-    f"{name}, es un nombre precioso. Me alegra que estemos hablando. ¿Cómo estás hoy?",
-    f"¡Hola {name}! Es un gusto conocerte. Cuéntame, ¿cómo te sientes?",
-    f"¡Qué alegría saludarte, {name}! ¿Cómo va todo contigo?",
-    f"{name}, me encanta tu nombre. Estoy feliz de conocerte. ¿Cómo te ha ido hoy?",
-    f"¡Hola, hola, {name}! Bienvenido. ¿Qué tal tu día?",
-    f"¡Un gusto conocerte, {name}! ¿Cómo has estado últimamente?",
-    f"¡Qué nombre tan especial, {name}! ¿Cómo te encuentras hoy?",
-    f"Me alegra mucho conocerte, {name}. ¿Cómo estás hoy?"
+    "¡Qué bonito nombre, {name}! Me alegra conocerte. ¿Cómo te ha ido hoy, {name}?",
+    "¡Encantado de conocerte, {name}! ¿Qué tal ha sido tu día?",
+    "{name}, es un nombre precioso. Me alegra que estemos hablando. ¿Cómo estás hoy?",
+    "¡Hola {name}! Es un gusto conocerte. Cuéntame, ¿cómo te sientes?",
+    "¡Qué alegría saludarte, {name}! ¿Cómo va todo contigo?",
+    "{name}, me encanta tu nombre. Estoy feliz de conocerte. ¿Cómo te ha ido hoy?",
+    "¡Hola, hola, {name}! Bienvenido. ¿Qué tal tu día?",
+    "¡Un gusto conocerte, {name}! ¿Cómo has estado últimamente?",
+    "¡Qué nombre tan especial, {name}! ¿Cómo te encuentras hoy?",
+    "Me alegra mucho conocerte, {name}. ¿Cómo estás hoy?"
 ]
 
 phrases_without_name = [
