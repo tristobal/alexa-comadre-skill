@@ -1,53 +1,117 @@
 import boto3
 import logging
-import json
 import re
 from datetime import datetime, timedelta
 from ask_sdk_core.skill_builder import SkillBuilder
 from ask_sdk_core.dispatch_components import AbstractRequestHandler, AbstractExceptionHandler
-from ask_sdk_core.handler_input import HandlerInput
 from ask_sdk_core.utils import is_request_type, is_intent_name
-from ask_sdk_model import Response
 import requests
 import os
-
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table(os.environ.get('DYNAMODB_TABLE_NAME', 'alexa-conversation-memory'))
+dynamodb = None
+table = None
+
+def setup_dynamodb():
+    """Configura DynamoDB de forma robusta"""
+    global dynamodb, table
+    try:
+        table_name = os.environ.get('DYNAMODB_TABLE_NAME', 'alexa-conversation-memory')
+
+        if not table_name:
+            raise ValueError("DYNAMODB_TABLE_NAME no está configurado")
+
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table(table_name)
+
+        table.load()
+        logger.info(f"Conectado a tabla: {table_name}")
+        logger.info(f"Estado de la tabla: {table.table_status}")
+
+        if hasattr(table, 'key_schema'):
+            for key in table.key_schema:
+                logger.info(f"Clave: {key['AttributeName']} (Tipo: {key['KeyType']})")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error configurando DynamoDB: {e}")
+        return False
+
+if not setup_dynamodb():
+    logger.error("Falló la inicialización de DynamoDB")
+
+def initialize_dynamodb():
+    """Inicializa y verifica la conexión a DynamoDB"""
+    global table
+    try:
+        table_name = os.environ.get('DYNAMODB_TABLE_NAME', 'alexa-conversation-memory')
+        logger.info(f"Inicializando tabla DynamoDB: {table_name}")
+
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table(table_name)
+
+        # Verificar que la tabla existe
+        table.load()
+        logger.info(f"Tabla {table_name} encontrada exitosamente")
+
+        # Log del esquema de claves para debug
+        key_schema = table.key_schema
+        logger.info(f"Esquema de claves: {key_schema}")
+
+        return True
+    except Exception as e:
+        logger.error(f"Error inicializando DynamoDB: {e}")
+        return False
+
+try:
+    initialize_dynamodb()
+except Exception as e:
+    logger.error(f"Error en inicialización: {e}")
+
+def get_primary_key_name():
+    """Determina el nombre correcto de la clave primaria"""
+    try:
+        key_schema = table.key_schema
+        for key in key_schema:
+            if key['KeyType'] == 'HASH':  # Primary key
+                return key['AttributeName']
+        return 'userId'
+    except:
+        return 'userId'
 
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 class EmotionalAnalyzer:
     """Analiza el estado emocional del usuario basado en palabras clave y contexto"""
-    
+
     SADNESS_KEYWORDS = [
         'triste', 'deprimido', 'solo', 'melancólico', 'llorar', 'pena', 'dolor',
         'extraño', 'falta', 'perdí', 'murió', 'falleció', 'preocupado', 'angustiado'
     ]
-    
+
     JOY_KEYWORDS = [
         'feliz', 'contento', 'alegre', 'emocionado', 'bien', 'genial', 'fantástico',
         'maravilloso', 'celebrar', 'fiesta', 'nietos', 'visita', 'sorpresa', 'regalo'
     ]
-    
+
     LONELINESS_KEYWORDS = [
         'solo', 'aburrido', 'nadie', 'silencio', 'vacío', 'abandonado', 'aislado'
     ]
-    
+
     @staticmethod
     def analyze_mood(text):
         logger.info("EmotionalAnalyzer.analize_mood(text=%s)", text[:10])
         """Analiza el estado de ánimo basado en el texto"""
         text_lower = text.lower()
-        
+
         sadness_score = sum(1 for word in EmotionalAnalyzer.SADNESS_KEYWORDS if word in text_lower)
         joy_score = sum(1 for word in EmotionalAnalyzer.JOY_KEYWORDS if word in text_lower)
         loneliness_score = sum(1 for word in EmotionalAnalyzer.LONELINESS_KEYWORDS if word in text_lower)
-        
+
         mood = ""
         if sadness_score > 0 or loneliness_score > 0:
             mood = "sad"
@@ -61,26 +125,30 @@ class EmotionalAnalyzer:
 
 class ConversationMemory:
     """Gestiona la memoria conversacional y emocional en DynamoDB"""
-    
+
     @staticmethod
     def get_user_profile(user_id):
         """Obtiene el perfil completo del usuario incluyendo historia emocional"""
-        
-        logger.info("ConversationMemory.get_user_profile(user_id=%s)", user_id)
         try:
-            response = table.get_item(Key={'user_id': user_id})
+            response = table.get_item(Key={'userId': user_id})
             if 'Item' in response:
                 # Limpiar conversaciones antiguas (más de 48 horas para adultos mayores)
-                last_interaction = datetime.fromisoformat(response['Item'].get('last_interaction', '2000-01-01'))
-                if datetime.now() - last_interaction > timedelta(hours=48):
-                    ConversationMemory.clear_conversation(user_id)
-                    return ConversationMemory._create_default_profile()
+                last_interaction_str = response['Item'].get('last_interaction', '2000-01-01')
+                try:
+                    last_interaction = datetime.fromisoformat(last_interaction_str)
+                    if datetime.now() - last_interaction > timedelta(hours=48):
+                        ConversationMemory.clear_conversation(user_id)
+                        return ConversationMemory._create_default_profile()
+                except (ValueError, TypeError):
+                    # Si hay error parseando la fecha, usar perfil por defecto
+                    logger.warning(f"Error parseando fecha: {last_interaction_str}")
+
                 return response['Item']
             return ConversationMemory._create_default_profile()
         except Exception as e:
             logger.error(f"Error obteniendo perfil: {e}")
             return ConversationMemory._create_default_profile()
-    
+
     @staticmethod
     def _create_default_profile():
         """Crea un perfil por defecto"""
@@ -94,49 +162,69 @@ class ConversationMemory:
             'emotional_history': [],
             'interaction_count': 0
         }
-    
+
     @staticmethod
     def save_user_profile(user_id, profile):
         """Guarda el perfil completo del usuario"""
-
-        logger.info("ConversationMemory.save_user_profile(user_id=%s, profile=%s)", user_id, profile)
         try:
             # Mantener solo los últimos 15 intercambios para adultos mayores
-            if len(profile['conversation_history']) > 30:
+            if len(profile.get('conversation_history', [])) > 30:
                 profile['conversation_history'] = profile['conversation_history'][-30:]
-            
+
             # Mantener histórico emocional de los últimos 10 intercambios
-            if len(profile['emotional_history']) > 10:
+            if len(profile.get('emotional_history', [])) > 10:
                 profile['emotional_history'] = profile['emotional_history'][-10:]
-            
-            profile['user_id'] = user_id
+
+            # Usar 'userId' como clave primaria (no 'user_id')
+            profile['userId'] = user_id
             profile['last_interaction'] = datetime.now().isoformat()
             profile['interaction_count'] = profile.get('interaction_count', 0) + 1
-            
+
+            # Asegurar que todas las listas estén inicializadas
+            profile.setdefault('conversation_history', [])
+            profile.setdefault('emotional_history', [])
+            profile.setdefault('topics_discussed', [])
+            profile.setdefault('family_mentioned', [])
+            profile.setdefault('interests', [])
+
+            # Convertir listas vacías None a listas vacías
+            for key in [
+                'conversation_history',
+                'emotional_history',
+                'topics_discussed', 
+                'family_mentioned',
+                'interests'
+            ]:
+                if profile.get(key) is None:
+                    profile[key] = []
+
             table.put_item(Item=profile)
+            logger.info(f"Perfil guardado exitosamente para usuario: {user_id}")
+
         except Exception as e:
             logger.error(f"Error guardando perfil: {e}")
-    
+            logger.error(f"Estructura del perfil: {list(profile.keys()) if profile else 'None'}")
+
     @staticmethod
     def clear_conversation(user_id):
         """Limpia el historial pero mantiene información básica del usuario"""
-        logger.info("ConversationMemory.clear_conversation(user_id=%s)", user_id)
         try:
             profile = ConversationMemory.get_user_profile(user_id)
             # Mantener información importante pero limpiar conversación
             profile['conversation_history'] = []
             profile['emotional_history'] = []
             ConversationMemory.save_user_profile(user_id, profile)
+            logger.info(f"Conversación limpiada para usuario: {user_id}")
         except Exception as e:
             logger.error(f"Error limpiando conversación: {e}")
 
 class LLMService:
     """Servicio mejorado para interactuar con Groq LLM"""
-    
+
     @staticmethod
     def get_system_prompt(user_profile):
         """Prompt del sistema personalizado basado en el perfil del usuario"""
-        
+
         logger.info("LLMService.get_system_prompt(user_profile=%s)", user_profile)
         base_prompt = """Eres Alexa, una compañía amigable y paciente. Hablas con una persona mayor que disfruta conversar contigo como si fueras una amiga cercana. 
 
@@ -151,20 +239,20 @@ Características de tu personalidad:
 - Responde como si fueras una persona real, no un asistente
 
 IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que realmente se preocupa."""
-        
+
         # Personalizar según el perfil
         user_name = user_profile.get('user_name')
         if user_name:
             base_prompt += f"\n\nEsta persona se llama {user_name}."
-        
+
         family_mentioned = user_profile.get('family_mentioned', [])
         if family_mentioned:
             base_prompt += f"\n\nHa mencionado a estos familiares: {', '.join(family_mentioned)}."
-        
+
         interests = user_profile.get('interests', [])
         if interests:
             base_prompt += f"\n\nLe interesan estos temas: {', '.join(interests)}."
-        
+
         # Contexto emocional reciente
         emotional_history = user_profile.get('emotional_history', [])
         if emotional_history:
@@ -173,7 +261,7 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
                 base_prompt += "\n\nNota: En conversaciones recientes ha mostrado signos de tristeza. Sé especialmente comprensiva."
             elif recent_mood == 'happy':
                 base_prompt += "\n\nNota: Recientemente ha estado alegre. Continúa con esa energía positiva."
-        
+
         return base_prompt
 
     @staticmethod
@@ -186,11 +274,11 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
                 'Authorization': f'Bearer {GROQ_API_KEY}',
                 'Content-Type': 'application/json'
             }
-            
+
             # Preparar mensajes con prompt personalizado
             system_message = {"role": "system", "content": LLMService.get_system_prompt(user_profile)}
             full_messages = [system_message] + messages
-            
+
             payload = {
                 'model': 'llama3-70b-8192',
                 'messages': full_messages,
@@ -198,13 +286,13 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
                 'temperature': 0.8,  # Más cálido y natural
                 'top_p': 0.9
             }
-            
+
             response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=15)
             response.raise_for_status()
-            
+
             result = response.json()
             return result['choices'][0]['message']['content'].strip()
-            
+
         except requests.exceptions.Timeout:
             return "Perdón cariño, me distraje un momento. ¿Qué me estabas contando?"
         except Exception as e:
@@ -214,7 +302,7 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
     @staticmethod
     def apply_empathetic_filter(response, mood, user_profile):
         """Aplica filtros empáticos a la respuesta"""
-        
+
         logger.info("LLMService.apply_empathetic_filter(response=%s, mood=%s, user_profile=%s)", response[:20], mood, user_profile)
         if mood == 'sad':
             # Si detecta tristeza, hace la respuesta más comprensiva
@@ -223,19 +311,18 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
                 "Noto que algo te preocupa. ",
                 "Siento que no estás del todo bien. "
             ]
-            
+
             # Solo añadir si la respuesta no es ya empática
             if not any(phrase.lower() in response.lower() for phrase in ['triste', 'preocup', 'siento']):
                 import random
                 response = random.choice(empathetic_phrases) + response
-        
+
         elif mood == 'happy':
             # Si detecta alegría, hace la respuesta más entusiasta
             if not any(phrase in response.lower() for phrase in ['¡', 'genial', 'fantástico', 'maravilloso']):
                 response = "¡Qué alegría escucharte tan contenta! " + response
-        
+
         return response
-    
     @staticmethod
     def extract_user_info(text, user_profile):
         """Extrae información del usuario del texto"""
@@ -253,7 +340,7 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
             match = re.search(pattern, text_lower)
             if match:
                 user_profile['user_name'] = match.group(1).capitalize()
-        
+
         # Extraer menciones de familia
         family_keywords = ['hijo', 'hija', 'nieto', 'nieta', 'esposo', 'esposa', 'hermano', 'hermana']
         for keyword in family_keywords:
@@ -268,7 +355,7 @@ IMPORTANTE: Siempre responde de manera natural y empática, como una amiga que r
 
 class LaunchRequestHandler(AbstractRequestHandler):
     """Maneja el inicio de la skill con personalización"""
-    
+
     def can_handle(self, handler_input):
         can_handle = is_request_type("LaunchRequest")(handler_input)
         logger.info(f"LaunchRequestHandler.can_handle() = {can_handle}")
@@ -280,10 +367,10 @@ class LaunchRequestHandler(AbstractRequestHandler):
 
         user_id = handler_input.request_envelope.session.user.user_id
         user_profile = ConversationMemory.get_user_profile(user_id)
-        
+
         interaction_count = user_profile.get('interaction_count', 0)
         user_name = user_profile.get('user_name')
-        
+
         if interaction_count == 0:
             speak_output = "¡Hola! Soy Alexa, tu nueva amiga. Me encanta conocer gente nueva. ¿Cómo te llamas?"
         elif interaction_count < 3:
@@ -292,7 +379,7 @@ class LaunchRequestHandler(AbstractRequestHandler):
         else:
             name_part = f" {user_name}" if user_name else " querido"
             speak_output = f"¡Hola{name_part}! ¿Cómo te fue hoy? Me encanta cuando vienes a conversar conmigo."
-        
+
         return (
             handler_input.response_builder
                 .speak(speak_output)
@@ -302,7 +389,7 @@ class LaunchRequestHandler(AbstractRequestHandler):
 
 class UnknownIntentHandler(AbstractRequestHandler):
     """Maneja solicitudes sin intent definido o con estructura incorrecta"""
-    
+
     def can_handle(self, handler_input):
         can_handle = False
         try:
@@ -314,16 +401,16 @@ class UnknownIntentHandler(AbstractRequestHandler):
 
         logger.info(f"UnknownIntentHandler.can_handle() = {can_handle}")
         return can_handle
-    
+
     def handle(self, handler_input):
         logger.info(f"UnknownIntentHandler.handle()")
         logger.info(f"handler_input = {handler_input}")
 
         user_id = handler_input.request_envelope.session.user.user_id
         user_profile = ConversationMemory.get_user_profile(user_id)
-        
+
         speak_output = "No entendí muy bien lo que dijiste, pero me encanta escucharte. ¿Me puedes contar algo más?"
-        
+
         return (
             handler_input.response_builder
                 .speak(speak_output)
@@ -333,7 +420,7 @@ class UnknownIntentHandler(AbstractRequestHandler):
 
 class ConversationIntentHandler(AbstractRequestHandler):
     """Maneja las conversaciones generales con análisis emocional - Versión mejorada"""
-    
+
     def can_handle(self, handler_input):
         can_handle = False
         try:
@@ -344,7 +431,7 @@ class ConversationIntentHandler(AbstractRequestHandler):
 
         logger.info(f"ConversationIntentHandler.can_handle() = {can_handle}")
         return can_handle
-    
+
     def handle(self, handler_input):
         logger.info(f"ConversationIntentHandler.handle()")
         logger.info(f"handler_input = {handler_input}")
@@ -354,22 +441,22 @@ class ConversationIntentHandler(AbstractRequestHandler):
         def get_user_input_safely():
             try:
                 request = handler_input.request_envelope.request
-                
+
                 # Verificar si es IntentRequest
                 if not hasattr(request, 'intent') or request.intent is None:
                     return None
-                
+
                 # Verificar si tiene slots
                 if not hasattr(request.intent, 'slots') or request.intent.slots is None:
                     return None
-                
+
                 # Obtener el slot UserInput
                 user_input_slot = request.intent.slots.get('UserInput')
                 if user_input_slot and hasattr(user_input_slot, 'value') and user_input_slot.value:
                     return user_input_slot.value
-                
+
                 return None
-                
+
             except Exception as e:
                 logger.error(f"Error obteniendo user input: {e}")
                 return None
@@ -432,7 +519,7 @@ class ConversationIntentHandler(AbstractRequestHandler):
 
 class MyDayIntentHandler(AbstractRequestHandler):
     """Maneja "cuéntame sobre tu día" - Alexa habla como amiga"""
-    
+
     def can_handle(self, handler_input):
         can_handle = is_intent_name("MyDayIntent")(handler_input)
         logger.info(f"MyDayIntentHandler.can_handle() = {can_handle}")
@@ -503,12 +590,12 @@ class HowAreYouIntentHandler(AbstractRequestHandler):
 
 class HelpIntentHandler(AbstractRequestHandler):
     """Maneja las solicitudes de ayuda de manera más cálida"""
-    
+
     def can_handle(self, handler_input):
         can_handle = is_intent_name("AMAZON.HelpIntent")(handler_input)
         logger.info(f"HelpIntentHandler.can_handle() = {can_handle}")
         return can_handle
-    
+
     def handle(self, handler_input):
         logger.info(f"HelpIntentHandler.handle()")
         logger.info(f"handler_input = {handler_input}")
