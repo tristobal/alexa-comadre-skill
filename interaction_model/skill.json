@@ -12,16 +12,11 @@
                         }
                     ],
                     "samples": [
-                        "quiero contarte algo",
-                        "tengo que decirte que {UserInput}",
-                        "hoy {UserInput}",
-                        "me siento {UserInput}",
-                        "quiero hablar de {UserInput}",
-                        "te cuento que {UserInput}",
-                        "sabes que {UserInput}",
+                        "{UserInput}",
+                        "quiero contarte que {UserInput}",
                         "fíjate que {UserInput}",
-                        "imagínate que {UserInput}",
-                        "no sabes lo que {UserInput}"
+                        "te cuento que {UserInput}",
+                        "sabes que {UserInput}"
                     ]
                 },
                 {
@@ -29,49 +24,16 @@
                     "slots": [
                         {
                             "name": "UserName",
-                            "type": "AMAZON.US_FIRST_NAME"
+                            "type": "AMAZON.SearchQuery"
                         }
                     ],
                     "samples": [
                         "me llamo {UserName}",
                         "soy {UserName}",
                         "mi nombre es {UserName}",
-                        "{UserName}",
-                        "yo soy {UserName}",
                         "puedes llamarme {UserName}",
-                        "mi nombre {UserName}"
-                    ]
-                },
-                {
-                    "name": "MyDayIntent",
-                    "slots": [],
-                    "samples": [
-                        "cuéntame sobre tu día",
-                        "cómo fue tu día",
-                        "qué hiciste hoy",
-                        "cuéntame de tu día",
-                        "cómo estuvo tu día",
-                        "qué tal tu día",
-                        "platícame de tu día",
-                        "dime qué hiciste hoy",
-                        "cómo pasaste el día",
-                        "qué tal estuvo tu día"
-                    ]
-                },
-                {
-                    "name": "HowAreYouIntent",
-                    "slots": [],
-                    "samples": [
-                        "cómo estás",
-                        "cómo te encuentras",
-                        "cómo andas",
-                        "qué tal estás",
-                        "cómo te sientes",
-                        "cómo has estado",
-                        "estás bien",
-                        "qué tal",
-                        "cómo sigues",
-                        "todo bien"
+                        "mi nombre {UserName}",
+                        "llámame {UserName}"
                     ]
                 },
                 {
@@ -87,7 +49,9 @@
                         "fantástico",
                         "todo bien",
                         "súper bien",
-                        "buenísimo"
+                        "buenísimo",
+                        "estoy contento",
+                        "me siento feliz"
                     ]
                 },
                 {
@@ -103,7 +67,9 @@
                         "no tan bien",
                         "algo mal",
                         "más o menos",
-                        "podría estar mejor"
+                        "podría estar mejor",
+                        "estoy solo",
+                        "me siento triste"
                     ]
                 },
                 {
@@ -111,7 +77,7 @@
                     "slots": [],
                     "samples": [
                         "borra mi conversación",
-                        "limpia mi memoria",
+                        "limpia la memoria",
                         "olvida lo que hemos hablado",
                         "empezar de nuevo",
                         "reiniciar conversación",
