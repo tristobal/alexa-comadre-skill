@@ -34,7 +34,7 @@ jobs:
           pip install textblob
           mkdir -p package
           pip install -r requirements.txt -t ./package
-          python -m textblob.download_corpora
+          python -m textblob.download_corpora --download_dir=/home/runner/nltk_data
           cp -r ~/.local/share/nltk_data ./package/nltk_data
 
       - name: Package Lambda
