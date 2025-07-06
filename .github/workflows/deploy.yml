@@ -31,17 +31,11 @@ jobs:
       - name: Install and package dependencies
         run: |
           pip install --upgrade pip
+          pip install textblob
           mkdir -p package
           pip install -r requirements.txt -t ./package
           python -m textblob.download_corpora
           cp -r ~/.local/share/nltk_data ./package/nltk_data
-
-
-      - name: Install and package dependencies
-        run: |
-          pip install --upgrade pip
-          mkdir -p package
-          pip install -r requirements.txt -t ./package
 
       - name: Package Lambda
         run: |
