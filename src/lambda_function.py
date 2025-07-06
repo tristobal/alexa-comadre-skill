@@ -1,3 +1,4 @@
+import asyncio
 import boto3
 import logging
 import random
@@ -5,11 +6,12 @@ import re
 import os
 from datetime import datetime
 
-from pysentimiento import create_analyzer
-
 from ask_sdk_core.skill_builder import SkillBuilder
 from ask_sdk_core.dispatch_components import AbstractRequestHandler, AbstractExceptionHandler
 from ask_sdk_core.utils import is_request_type, is_intent_name
+from googletrans import Translator
+from textblob import TextBlob
+
 import requests
 
 logger = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ logger.setLevel(logging.INFO)
 
 dynamodb = None
 table = None
-sentiment_analyzer = None
+translator = Translator()
 
 def setup_services():
     """Inicializa DynamoDB y el analizador de sentimientos una sola vez."""
@@ -39,14 +41,6 @@ def setup_services():
         # Si DynamoDB falla, la skill no puede funcionar correctamente.
         # En un escenario real, podrías manejar esto de forma más elegante.
 
-    # Configurar Analizador de Sentimientos (solo si no está inicializado)
-    try:
-        if not sentiment_analyzer:
-            # Usamos un modelo optimizado para ejecutarse eficientemente en Lambda
-            sentiment_analyzer = create_analyzer(task="sentiment", lang="es")
-            logger.info("✅ Analizador de sentimientos cargado exitosamente.")
-    except Exception as e:
-        logger.error(f"❌ Error CRÍTICO al cargar el analizador de sentimientos: {e}")
 
 setup_services()
 
@@ -56,17 +50,31 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 class EmotionalAnalyzer:
     """Clase para analizar el estado emocional usando un modelo de ML."""
+
+    @staticmethod
+    async def _translate_to_eng(text):
+        translation = await translator.translate(text, src='es', dest='en')
+        return translation.text
+
     @staticmethod
     def analyze_mood(text):
-        if not sentiment_analyzer:
-            logger.warning("Analizador no disponible, se devuelve 'neutral'.")
-            return "neutral"
         try:
-            analysis = sentiment_analyzer.predict(text)
-            # Mapea la salida del modelo (POS, NEU, NEG) a nuestros estados
-            output_map = {"POS": "happy", "NEU": "neutral", "NEG": "sad"}
-            mood = output_map.get(analysis.output, "neutral")
-            logger.info(f"Análisis de sentimiento para '{text[:30]}...': {mood} (Score: {analysis.probas})")
+            eng_txt = EmotionalAnalyzer._translate_to_eng(text)
+            blob = TextBlob(eng_txt)
+            polarity = blob.sentiment.polarity
+            if polarity > 0:
+                sentiment = "+"
+            elif polarity < 0:
+                sentiment = "-"
+            else:
+                sentiment = "0"
+            output_map = {
+                "+": "happy",
+                "0": "neutral",
+                "-": "sad"
+            }
+            mood = output_map.get(sentiment, "neutral")
+            logger.info(f"Análisis de sentimiento para '{text[:30]}...': {mood})")
             return mood
         except Exception as e:
             logger.error(f"Error en análisis de sentimiento: {e}")

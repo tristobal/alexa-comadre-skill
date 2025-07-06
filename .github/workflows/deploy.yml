@@ -28,7 +28,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
+      - name: Install and package dependencies
+        run: |
+          pip install --upgrade pip
+          mkdir -p package
+          pip install -r requirements.txt -t ./package
+          python -m textblob.download_corpora
+          cp -r ~/.local/share/nltk_data ./package/nltk_data
+
+
+      - name: Install and package dependencies
         run: |
           pip install --upgrade pip
           mkdir -p package

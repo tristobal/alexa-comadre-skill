@@ -1,4 +1,6 @@
 ask-sdk-core
 boto3
 requests
-pysentimiento
+googletrans
+textblob
+
